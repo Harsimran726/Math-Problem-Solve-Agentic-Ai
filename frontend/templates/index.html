@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Math Solver Agent — AI-Powered Problem Solver</title>
+  <meta name="description"
+    content="Upload a math problem image or type your question. Our multi-agent AI system parses, solves, verifies, and explains step by step." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <!-- Marked.js for Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+  <!-- KaTeX for LaTeX math rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+</head>
+
+<body>
+  <!-- Ambient animated background -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow--1"></div>
+  <div class="bg-glow bg-glow--2"></div>
+
+  <main class="container">
+    <!-- ─── Header ─────────────────────────────── -->
+    <header class="header" id="header">
+      <div class="header__badge">✦ MULTI-AGENT AI</div>
+      <h1>Math Solver Agent</h1>
+      <p>Upload an image or type a question — our AI agents will parse, solve, verify &amp; explain.</p>
+    </header>
+
+    <!-- ─── Input Card ─────────────────────────── -->
+    <section class="card card--input" id="input-card">
+      <form id="solve-form" enctype="multipart/form-data">
+        <!-- Text input -->
+        <label for="text_input">
+          <span class="label-icon">📝</span> Question
+        </label>
+        <textarea id="text_input" name="text_input" rows="4"
+          placeholder="e.g.  Solve x² – 5x + 6 = 0  for real roots"></textarea>
+
+        <!-- Image upload zone -->
+        <label>
+          <span class="label-icon">📷</span> Image <span class="label-hint">(drag & drop or click)</span>
+        </label>
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="image_file" name="image_file" accept="image/*" hidden />
+          <div class="dropzone__content" id="dropzone-content">
+            <div class="dropzone__icon">⬆️</div>
+            <p>Drag &amp; drop an image here</p>
+            <span class="dropzone__hint">or click to browse</span>
+          </div>
+          <img id="image-preview" class="dropzone__preview" alt="Preview" />
+        </div>
+
+        <button type="submit" id="submit-btn" class="btn btn--primary">
+          <span class="btn__text">🚀 Solve</span>
+          <span class="btn__loader" hidden>
+            <span class="spinner"></span> Processing…
+          </span>
+        </button>
+      </form>
+    </section>
+
+    <!-- ─── Progress Stepper ───────────────────── -->
+    <section class="stepper-card" id="stepper-card" hidden>
+      <div class="stepper">
+        <div class="stepper__step" data-step="parser">
+          <div class="stepper__dot"></div>
+          <span>Parse</span>
+        </div>
+        <div class="stepper__line"></div>
+        <div class="stepper__step" data-step="solver">
+          <div class="stepper__dot"></div>
+          <span>Solve</span>
+        </div>
+        <div class="stepper__line"></div>
+        <div class="stepper__step" data-step="verifier">
+          <div class="stepper__dot"></div>
+          <span>Verify</span>
+        </div>
+        <div class="stepper__line"></div>
+        <div class="stepper__step" data-step="explanation">
+          <div class="stepper__dot"></div>
+          <span>Explain</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── HITL Clarification Card ────────────── -->
+    <section class="card card--hitl" id="hitl-card" hidden>
+      <div class="hitl-badge">⚠️ Clarification Needed</div>
+      <h2>Does this look right?</h2>
+      <div class="hitl-content" id="hitl-content"></div>
+      <div class="hitl-actions">
+        <button class="btn btn--proceed" id="btn-proceed">✅ Proceed</button>
+        <button class="btn btn--retry" id="btn-retry">🔄 Try Again</button>
+      </div>
+    </section>
+
+    <!-- ─── Results ────────────────────────────── -->
+    <section class="card card--results" id="results-card" hidden>
+      <div class="results-header">
+        <h2>📖 Explanation</h2>
+        <div class="verify-badge" id="verify-badge" hidden>
+          <span class="verify-badge__icon">🔎</span>
+          <span class="verify-badge__text" id="verify-score"></span>
+        </div>
+      </div>
+
+      <div class="result-block">
+        <div class="result-body math-content" id="result-problem"></div>
+      </div>
+
+      <div class="result-block">
+        <div class="result-body math-content" id="result-solution"></div>
+      </div>
+
+      <div class="result-block result-block--context">
+        <div class="result-body math-content" id="result-context"></div>
+      </div>
+    </section>
+
+    <!-- ─── Logs Drawer ────────────────────────── -->
+    <section class="card card--logs" id="logs-card" hidden>
+      <button class="logs-toggle" id="logs-toggle" type="button">
+        📋 Agent Logs <span class="logs-count" id="logs-count">0</span>
+        <span class="logs-chevron" id="logs-chevron">▼</span>
+      </button>
+      <div class="logs-body" id="logs-body" hidden>
+        <ul class="logs-list" id="logs-list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+
+</html>
