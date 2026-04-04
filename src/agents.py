@@ -5,11 +5,13 @@ import sys
 import io
 import os
 from datetime import datetime
-
+from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings # Updated import
 from langchain_core.tools import Tool
 from states import AgentInput, ParseAgentOutput, VerifyAgentOutput, ExplainAgentOutput, SolveAgentOutput
 from ocrmodels import extract_math_from_image
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_classic.memory import ConversationBufferMemory
 from langchain_classic.agents import AgentExecutor, create_openai_functions_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -21,15 +23,15 @@ load_dotenv()
 logger = logging.getLogger("math_solver")
 logger.setLevel(logging.DEBUG)
 
-if not logger.handlers:
-    _handler = logging.StreamHandler()
-    _handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-            datefmt="%H:%M:%S",
-        )
-    )
-    logger.addHandler(_handler)
+# if not logger.handlers:
+#     _handler = logging.StreamHandler()
+#     _handler.setFormatter(
+#         logging.Formatter(
+#             "%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+#             datefmt="%H:%M:%S",
+#         )
+#     )
+#     logger.addHandler(_handler)
 
 
 def _ts() -> str:
@@ -42,14 +44,20 @@ shared_memory = ConversationBufferMemory(
     memory_key="chat_history",
     return_messages=True,
 )
-
+embedding = HuggingFaceEmbeddings(
+    model_name="all-MiniLM-L6-v2",
+    model_kwargs={'device': 'cpu'},  # Use 'cuda' if you have a GPU
+    encode_kwargs={'normalize_embeddings': True}
+)
 
 def get_retreival_context(query):
     try:
+        logger.info("Getting retrieval context for query: %s", query)
         vector_store = FAISS.load_local("faiss_index", embedding)
         retriever = vector_store.as_retriever(search_kwargs={"k": 3})
         context = retriever.get_relevant_documents(query)
         context_text = "\n\n".join([doc.page_content for doc in context])
+        print(f"RETREIVAL DOCS\n{context_text}")
         return context_text
     except Exception as e: 
         logger.error(f"Error getting retreival context: {e}")
@@ -59,6 +67,7 @@ retrieval_tool = Tool(
     description="Essential for Math Material, Formulas, concept understanding..",
     func=get_retreival_context 
 )
+
 tools = [retrieval_tool]
 
 
@@ -172,12 +181,13 @@ class parser_agent:
                 ("assistant", "{agent_scratchpad}")
             ])
 
-            llm = ChatOpenAI(model='gpt-4.1-mini', api_key=os.getenv("openai_api_key"))
+            llm = ChatOpenAI(model='gpt-5.4-nano', api_key=os.getenv("openai_api_key"))
+            # llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview",api_key=os.getenv("gemini_api_key"),temperature=1)
             executor = AgentExecutor(
                 agent=create_openai_functions_agent(llm=llm, tools=tools, prompt=prompt_template),
                 tools=tools,
                 verbose=True,
-                memory=shared_memory,
+              
             )
 
             log_lines.append(f"[{_ts()}] 🤖 Calling LLM for parsing")
@@ -254,12 +264,11 @@ RULES:
                 ("human", "{input}"),
                 ("assistant", "{agent_scratchpad}")
             ])
-            llm = ChatOpenAI(model='gpt-4.1-mini', api_key=os.getenv("openai_api_key"))
+            llm = ChatOpenAI(model='gpt-5.4-mini', api_key=os.getenv("openai_api_key"))
             executor = AgentExecutor(
                 agent=create_openai_functions_agent(llm=llm, tools=tools, prompt=prompt_template),
                 tools=tools,
                 verbose=True,
-                memory=shared_memory,
             )
 
             query = f"<Problem_statement>{parse_agent_out.problem_text} and Topic: {parse_agent_out.topic}"
@@ -328,12 +337,11 @@ class verifier_agent:
                 ("human", "{input}"),
                 ("assistant", "{agent_scratchpad}")
             ])
-            llm = ChatOpenAI(model='gpt-4.1-mini', api_key=os.getenv("openai_api_key"))
+            llm = ChatOpenAI(model='gpt-5.4-nano', api_key=os.getenv("openai_api_key"))
             executor = AgentExecutor(
                 agent=create_openai_functions_agent(llm=llm, tools=tools, prompt=prompt_template),
                 tools=tools,
                 verbose=True,
-                memory=shared_memory,
             )
 
             query = f"<Problem_statement>{parse_agent_out.problem_text} and TOPIC: {parse_agent_out.topic}<solution>{solve_agent_out.solution}<Answer>{solve_agent_out.answer}"
@@ -385,7 +393,7 @@ You MUST respond with ONLY a valid JSON object (no markdown fences, no extra tex
 
 Respond with ONLY the JSON. No other text."""
 
-            llm = ChatOpenAI(model='gpt-4o-mini', api_key=os.getenv("openai_api_key"), temperature=0.8)
+            llm = ChatOpenAI(model='gpt-5.4-nano', api_key=os.getenv("openai_api_key"), temperature=0.8)
             prompt_template = ChatPromptTemplate.from_messages([
                 ("system", system_prompt),
                 MessagesPlaceholder("chat_history"),
@@ -401,7 +409,6 @@ Respond with ONLY the JSON. No other text."""
                 agent=create_openai_functions_agent(llm=llm, tools=tools, prompt=prompt_template),
                 tools=tools,
                 verbose=True,
-                memory=shared_memory,
             )
             log_lines.append(f"[{_ts()}] 🤖 Calling Explanation LLM")
             logger.info("Invoking explanation LLM")

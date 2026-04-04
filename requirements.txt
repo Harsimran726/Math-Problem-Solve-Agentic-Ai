@@ -1,0 +1,36 @@
+# LangChain ecosystem
+langchain-core
+langchain-classic
+langchain-community
+langchain-openai
+langchain-huggingface
+langgraph
+
+# Vector store & retrieval
+faiss-cpu
+
+# PDF processing
+pdfplumber
+
+# OCR & ML models
+transformers
+torch
+Pillow
+
+# Embeddings
+sentence-transformers
+
+# Retry logic
+tenacity
+
+# Web framework
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+
+# Environment variables
+python-dotenv
+
+# BM25 retriever dependency
+rank-bm25

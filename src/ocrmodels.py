@@ -29,7 +29,7 @@ def extract_math_from_image(image_input):
     outputs = model.generate(
         pixel_values.to(device),
         min_length=1,
-        max_new_tokens=1024,
+        max_new_tokens=2024,
         bad_words_ids=[[processor.tokenizer.unk_token_id]],
     )
 
